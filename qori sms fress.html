@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Litensi SMS Dashboard - Fresh Numbers Only</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast-enter {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        .toast-enter-active {
+            transform: translateY(0);
+            opacity: 1;
+            transition: all 0.3s ease-out;
+        }
+        .toast-exit-active {
+            transform: translateY(100%);
+            opacity: 0;
+            transition: all 0.3s ease-in;
+        }
+        
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: #2563eb;
+            font-weight: 600;
+        }
+        
+        .service-card.selected {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col h-full z-10 hidden md:flex transition-all duration-300" id="sidebar">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-comment-sms text-primary-600"></i>
+                    Litensi SMS Pro
+                </h2>
+                <p class="text-xs text-slate-500 mt-1">Instant Cancel & Auto-OTP</p>
+            </div>
+            <button class="md:hidden text-slate-400 hover:text-slate-700" onclick="toggleSidebar()">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto p-4">
+            <ul class="space-y-2">
+                <li>
+                    <a href="#" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" onclick="switchTab('order')">
+                        <i class="fa-solid fa-cart-plus w-5 text-center"></i>
+                        <span>Order Number</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" onclick="switchTab('active')">
+                        <i class="fa-solid fa-list-check w-5 text-center"></i>
+                        <span>Active Orders</span>
+                        <span class="ml-auto bg-primary-100 text-primary-700 py-0.5 px-2 rounded-full text-xs font-bold" id="active-count-badge">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" onclick="switchTab('history')">
+                        <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i>
+                        <span>History Order (Sukses)</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" onclick="switchTab('topup')">
+                        <i class="fa-solid fa-wallet w-5 text-center"></i>
+                        <span>Top Up Saldo</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" onclick="switchTab('settings')">
+                        <i class="fa-solid fa-gear w-5 text-center"></i>
+                        <span>Settings & Cancel Rule</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100 bg-slate-50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Saldo Litensi</p>
+                    <p class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span id="sidebar-balance">Rp 0</span>
+                        <button onclick="fetchBalance()" class="text-primary-500 hover:text-primary-700 focus:outline-none" title="Refresh Saldo">
+                            <i class="fa-solid fa-rotate-right text-xs" id="refresh-balance-icon"></i>
+                        </button>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative w-full">
+        
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white border-b border-slate-200 flex items-center justify-between p-4 sticky top-0 z-20">
+            <div class="flex items-center gap-3">
+                <button class="text-slate-500 hover:text-slate-900 focus:outline-none" onclick="toggleSidebar()">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h1 class="text-lg font-bold text-slate-900">Litensi SMS Pro</h1>
+            </div>
+            <div class="font-bold text-sm text-primary-700 bg-primary-50 px-3 py-1 rounded-full">
+                <span id="mobile-balance">Rp 0</span>
+            </div>
+        </header>
+
+        <!-- Overlay for mobile sidebar -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 z-[5] hidden md:hidden" onclick="toggleSidebar()"></div>
+
+        <!-- Scrollable Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-8" id="main-content">
+
+            <!-- Tab: Active Orders -->
+            <div id="tab-active" class="hidden max-w-5xl mx-auto space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-2xl font-bold text-slate-900">Active Orders</h2>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1">
+                                <i class="fa-solid fa-shield-halved text-blue-600"></i> HANYA NOMOR BELUM ADA OTP
+                            </span>
+                        </div>
+                        <p class="text-slate-500 mt-1">Daftar nomor aktif yang <strong>WAJIB BELUM PERNAH</strong> menerima kode OTP apapun. Begitu OTP masuk, nomor otomatis pindah ke History.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="cancelAllActiveOrders()" class="text-xs bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 py-2 px-3 rounded-md font-medium transition-colors">
+                            <i class="fa-solid fa-ban mr-1"></i> Batal Semua
+                        </button>
+                        <button onclick="fetchActiveOrders()" class="text-sm bg-white border border-slate-300 text-slate-700 py-2 px-4 rounded-md font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-rotate-right" id="refresh-orders-icon"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Fast Cancel Switch Info Box -->
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between text-sm text-blue-900">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-bolt text-blue-600 text-lg"></i>
+                        <div>
+                            <span class="font-bold">Mode Pembatalan: </span>
+                            <span id="active-cancel-mode-text" class="text-blue-700">Instant Cancel Active (Tanpa Delay 20 Menit)</span>
+                        </div>
+                    </div>
+                    <button onclick="switchTab('settings')" class="text-xs bg-white text-blue-600 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-semibold">Ubah Pengaturan</button>
+                </div>
+
+                <div id="active-empty-state" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                    <div class="mx-auto w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-box-open text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-slate-900">Tidak ada nomor aktif tanpa OTP</h3>
+                    <p class="text-slate-500 mt-1">Anda tidak memiliki order nomor yang belum menerima OTP saat ini.</p>
+                    <button onclick="switchTab('order')" class="mt-4 text-primary-600 font-medium hover:text-primary-700">Beli Nomor Baru &rarr;</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="active-orders-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Tab: Order Number -->
+            <div id="tab-order" class="max-w-4xl mx-auto space-y-6">
+                
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">New Activation</h2>
+                        <p class="text-slate-500 mt-1">Pilih negara dan layanan untuk beli nomor verifikasi SMS murni.</p>
+                    </div>
+                </div>
+
+                <!-- API Key Warning -->
+                <div id="api-key-warning" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-md shadow-sm">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-amber-800">API Key Belum Dikonfigurasi</h3>
+                            <div class="mt-1 text-sm text-amber-700">
+                                <p>Silakan masukkan API Key Litensi Anda terlebih dahulu pada menu Settings.</p>
+                            </div>
+                            <div class="mt-2">
+                                <button onclick="switchTab('settings')" class="text-sm font-medium text-amber-800 hover:text-amber-900 underline">Buka Settings</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 space-y-6">
+                        
+                        <!-- Country Selection -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">1. Pilih Negara</label>
+                            <div class="relative">
+                                <select id="select-country" class="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg border appearance-none bg-slate-50" onchange="loadServicesAndOperators()">
+                                    <option value="" disabled selected>Memuat negara...</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Service Selection -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2 flex justify-between items-center">
+                                <span>2. Pilih Layanan / Aplikasi</span>
+                                <span class="text-xs text-slate-400 font-normal" id="service-count">0 tersedia</span>
+                            </label>
+                            
+                            <!-- Search Service -->
+                            <div class="relative mb-3">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fa-solid fa-search text-slate-400"></i>
+                                </div>
+                                <input type="text" id="search-service" class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-white" placeholder="Cari layanan (contoh: WhatsApp, Telegram, DANA, Gojek)..." onkeyup="filterServices()">
+                            </div>
+
+                            <div id="service-list-loader" class="hidden text-center py-4">
+                                <div class="loader"></div>
+                                <p class="text-xs text-slate-500 mt-2">Memuat daftar layanan...</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar" id="service-grid">
+                                <div class="col-span-full text-center py-8 text-slate-500 text-sm italic" id="service-empty-state">
+                                    Silakan pilih negara terlebih dahulu untuk melihat layanan.
+                                </div>
+                            </div>
+                            <input type="hidden" id="selected-service-code">
+                        </div>
+
+                        <!-- Advanced Options (Operator, Price) -->
+                        <div class="border-t border-slate-100 pt-6">
+                            <button type="button" class="flex items-center text-sm font-medium text-slate-600 hover:text-slate-900" onclick="toggleAdvancedOptions()">
+                                <i class="fa-solid fa-sliders mr-2"></i> Opsi Lanjutan (Operator & Maks Harga)
+                                <i class="fa-solid fa-chevron-down ml-2 text-xs transition-transform" id="advanced-chevron"></i>
+                            </button>
+                            
+                            <div id="advanced-options" class="hidden mt-4 space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Operator Preferensi</label>
+                                    <select id="select-operator" class="block w-full pl-3 pr-10 py-2 text-sm border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md border bg-white">
+                                        <option value="any">Acak (Semua Operator)</option>
+                                    </select>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Maksimal (IDR)</label>
+                                        <input type="number" id="input-max-price" placeholder="Kosongkan untuk termurah" class="block w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-white">
+                                    </div>
+                                    <div class="flex items-center mt-6">
+                                        <input id="check-fixed-price" type="checkbox" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                                        <label for="check-fixed-price" class="ml-2 block text-xs text-slate-700">
+                                            Hanya Harga Tetap (Fixed)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Pengecualian Awalan Nomor (Prefix)</label>
+                                    <input type="text" id="input-phone-exception" placeholder="Contoh: 6281, 6282" class="block w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <!-- Order Action Bar -->
+                    <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                        <div class="text-sm">
+                            <span class="text-slate-500">Estimasi Biaya:</span>
+                            <span class="font-bold text-slate-900" id="estimated-price">Pilih layanan</span>
+                        </div>
+                        <button id="btn-order" onclick="orderNumber()" class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <span id="btn-order-text"><i class="fa-solid fa-cart-plus mr-1.5"></i> Order Nomor Sekarang</span>
+                            <span id="btn-order-loader" class="hidden ml-2 loader border-t-white w-4 h-4 border-2"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: History (Sukses Only & Nomor Unik) -->
+            <div id="tab-history" class="hidden max-w-5xl mx-auto space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-2xl font-bold text-slate-900">History Orders</h2>
+                            <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-check text-emerald-600"></i> SUKSES ONLY
+                            </span>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1">
+                                <i class="fa-solid fa-fingerprint text-blue-600"></i> NOMOR UNIK
+                            </span>
+                        </div>
+                        <p class="text-slate-500 mt-1">Daftar riwayat khusus nomor yang telah sukses menerima kode OTP (Tiap nomor hanya muncul 1x).</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="copyAllHistoryNumbers()" class="text-xs bg-primary-600 border border-primary-600 text-white px-3.5 py-2 rounded-md hover:bg-primary-700 transition-colors flex items-center gap-1.5 font-medium shadow-sm">
+                            <i class="fa-regular fa-copy"></i> Salin Semua Nomor Sukses
+                        </button>
+                        <button onclick="clearHistory()" class="text-xs bg-white border border-slate-300 text-red-600 px-3 py-2 rounded-md hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-trash"></i> Hapus Riwayat
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] font-semibold tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-3">ID Activation</th>
+                                    <th class="px-4 py-3">Layanan</th>
+                                    <th class="px-4 py-3">Nomor Telepon</th>
+                                    <th class="px-4 py-3">Kode OTP</th>
+                                    <th class="px-4 py-3">Status</th>
+                                    <th class="px-4 py-3">Waktu</th>
+                                    <th class="px-4 py-3">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-mono text-xs" id="history-table-body">
+                                <tr>
+                                    <td colspan="7" class="px-4 py-8 text-center text-slate-400 font-sans italic">Belum ada riwayat nomor sukses tersimpan.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Top Up Saldo -->
+            <div id="tab-topup" class="hidden max-w-2xl mx-auto space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Top Up Saldo</h2>
+                    <p class="text-slate-500 mt-1">Isi ulang saldo akun Litensi SMS & SMM Anda secara instan.</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 space-y-6 text-center">
+                        <div class="mx-auto w-16 h-16 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center mb-2">
+                            <i class="fa-solid fa-wallet text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900">Deposit Melalui Portal Resmi Litensi</h3>
+                        <p class="text-sm text-slate-600 max-w-md mx-auto">
+                            Klik tombol di bawah untuk melakukan deposit via halaman resmi Litensi. Setelah deposit berhasil, saldo akan terupdate otomatis.
+                        </p>
+
+                        <div class="pt-4">
+                            <a href="https://litensi.id/deposit" target="_blank" class="inline-flex items-center justify-center w-full max-w-sm px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors gap-2">
+                                <i class="fa-solid fa-external-link-alt"></i> Buka Halaman Deposit Litensi
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Settings -->
+            <div id="tab-settings" class="hidden max-w-3xl mx-auto space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Settings & Cancel Rules</h2>
+                    <p class="text-slate-500 mt-1">Pengaturan API Key dan Aturan Pembatalan Nomor (Cancel Lock Override).</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 space-y-6">
+                        
+                        <!-- API Key -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Litensi API Key</label>
+                            <p class="text-xs text-slate-500 mb-2">Didapatkan dari dashboard akun litensi.id Anda.</p>
+                            
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fa-solid fa-key text-slate-400"></i>
+                                    </div>
+                                    <input type="password" id="input-api-key" class="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-md focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-white font-mono" placeholder="Masukkan API Key Anda">
+                                    <button type="button" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600" onclick="togglePasswordVisibility('input-api-key', this)">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cancel Rules Configuration -->
+                        <div class="border-t border-slate-100 pt-5">
+                            <h3 class="text-base font-bold text-slate-900 mb-1"><i class="fa-solid fa-clock-rotate-left text-primary-600 mr-2"></i>Pengaturan Pembatalan (Cancel Lock & Timer)</h3>
+                            <p class="text-xs text-slate-500 mb-4">Pengaturan untuk langsung membuka tombol cancel tanpa menunggu 20 menit dari penyedia.</p>
+
+                            <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label for="switch-bypass-cancel" class="text-sm font-bold text-slate-800">Mode Force Instant Cancel (Bypass Lock)</label>
+                                        <p class="text-xs text-slate-500">Aktifkan agar tombol "Batal / Cancel" selalu terbuka langsung sejak detik ke-0 (Tanpa harus menunggu 20 menit).</p>
+                                    </div>
+                                    <input type="checkbox" id="switch-bypass-cancel" class="h-5 w-5 text-primary-600 rounded cursor-pointer" checked onchange="saveCancelSettings()">
+                                </div>
+
+                                <div class="border-t border-slate-200 pt-3">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Durasi Timer Hitung Mundur Order (Menit)</label>
+                                    <input type="number" id="input-timer-duration" value="20" min="1" max="60" class="block w-32 px-3 py-1.5 border border-slate-300 rounded-md text-sm font-bold" onchange="saveCancelSettings()">
+                                    <p class="text-[11px] text-slate-400 mt-1">Default 20 menit sesuai dengan masa aktif pendaftaran SMS provider.</p>
+                                </div>
+
+                                <div class="border-t border-slate-200 pt-3 flex items-center justify-between">
+                                    <div>
+                                        <label for="switch-auto-cancel" class="text-sm font-semibold text-slate-800">Auto-Cancel Otomatis Jika Timer Habis</label>
+                                        <p class="text-xs text-slate-500">Sistem akan memanggil API pembatalan secara otomatis jika waktu hitung mundur habis dan OTP belum masuk.</p>
+                                    </div>
+                                    <input type="checkbox" id="switch-auto-cancel" class="h-5 w-5 text-primary-600 rounded cursor-pointer" checked onchange="saveCancelSettings()">
+                                </div>
+
+                                <div class="border-t border-slate-200 pt-3 flex items-center justify-between">
+                                    <div>
+                                        <label for="switch-audio-notify" class="text-sm font-semibold text-slate-800">Notifikasi Suara (Sound Alarm)</label>
+                                        <p class="text-xs text-slate-500">Bunyikan nada bip saat kode OTP berhasil diterima.</p>
+                                    </div>
+                                    <input type="checkbox" id="switch-audio-notify" class="h-5 w-5 text-primary-600 rounded cursor-pointer" checked onchange="saveCancelSettings()">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end">
+                        <button onclick="saveSettings()" class="inline-flex items-center px-5 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-900 hover:bg-slate-800">
+                            Simpan Pengaturan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // --- Helper Deduplikasi Nomor Telepon ---
+        function deduplicateHistoryByPhone(list) {
+            if (!Array.isArray(list)) return [];
+            const seen = new Set();
+            const result = [];
+            for (const item of list) {
+                if (!item || !item.phone) continue;
+                // Bersihkan karakter non-digit agar pembandingan presisi (+62 vs 62 vs 08)
+                const cleanPhone = item.phone.toString().replace(/[^0-9]/g, '');
+                if (!seen.has(cleanPhone)) {
+                    seen.add(cleanPhone);
+                    result.push(item);
+                }
+            }
+            return result;
+        }
+
+        // --- State Management ---
+        const rawHistory = JSON.parse(localStorage.getItem('litensi_history_orders') || '[]')
+            .filter(item => item.status === 'SUKSES' || item.status === 'SELESAI');
+
+        const state = {
+            apiKey: localStorage.getItem('litensi_api_key') || '',
+            baseUrl: 'https://litensi.id/api/sms/handler_api.php',
+            balance: 0,
+            countries: [],
+            services: [],
+            selectedCountry: '',
+            selectedService: '',
+            activeOrders: [],
+            historyOrders: deduplicateHistoryByPhone(rawHistory),
+            pollingIntervals: {}, // map activationId -> intervalId
+            timerIntervals: {},   // map activationId -> intervalId
+            orderStartTimes: JSON.parse(localStorage.getItem('litensi_order_timers') || '{}'),
+            // Settings options
+            bypassCancelLock: localStorage.getItem('litensi_bypass_cancel') !== 'false', // default true
+            timerMinutes: parseInt(localStorage.getItem('litensi_timer_minutes') || '20', 10),
+            autoCancelExpired: localStorage.getItem('litensi_auto_cancel') !== 'false', // default true
+            audioNotify: localStorage.getItem('litensi_audio_notify') !== 'false' // default true
+        };
+
+        // Simpan data bersih yang sudah ter-deduplikasi kembali ke local storage
+        localStorage.setItem('litensi_history_orders', JSON.stringify(state.historyOrders));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
+
+        function initApp() {
+            // Load Settings UI
+            document.getElementById('switch-bypass-cancel').checked = state.bypassCancelLock;
+            document.getElementById('input-timer-duration').value = state.timerMinutes;
+            document.getElementById('switch-auto-cancel').checked = state.autoCancelExpired;
+            document.getElementById('switch-audio-notify').checked = state.audioNotify;
+            
+            updateCancelModeText();
+
+            // Check API Key
+            if (state.apiKey) {
+                document.getElementById('input-api-key').value = state.apiKey;
+                document.getElementById('api-key-warning').classList.add('hidden');
+                fetchBalance();
+                fetchCountries();
+                fetchActiveOrders();
+            } else {
+                document.getElementById('api-key-warning').classList.remove('hidden');
+                switchTab('settings');
+                showToast('Masukkan API Key Litensi untuk memulai.', 'warning');
+            }
+
+            renderHistoryTable();
+        }
+
+        function updateCancelModeText() {
+            const el = document.getElementById('active-cancel-mode-text');
+            if (el) {
+                if (state.bypassCancelLock) {
+                    el.innerText = 'Instant Cancel Aktif (Tombol Batal Selalu Terbuka / Langsung Bisa Cancel)';
+                    el.className = 'text-green-700 font-semibold';
+                } else {
+                    el.innerText = `Menunggu Timer (${state.timerMinutes} Menit) Sebelum Batal`;
+                    el.className = 'text-amber-700 font-semibold';
+                }
+            }
+        }
+
+        function saveCancelSettings() {
+            state.bypassCancelLock = document.getElementById('switch-bypass-cancel').checked;
+            state.timerMinutes = parseInt(document.getElementById('input-timer-duration').value, 10) || 20;
+            state.autoCancelExpired = document.getElementById('switch-auto-cancel').checked;
+            state.audioNotify = document.getElementById('switch-audio-notify').checked;
+
+            localStorage.setItem('litensi_bypass_cancel', state.bypassCancelLock);
+            localStorage.setItem('litensi_timer_minutes', state.timerMinutes);
+            localStorage.setItem('litensi_auto_cancel', state.autoCancelExpired);
+            localStorage.setItem('litensi_audio_notify', state.audioNotify);
+
+            updateCancelModeText();
+            updateActiveOrdersUI();
+        }
+
+        function switchTab(tabId) {
+            ['order', 'active', 'history', 'topup', 'settings'].forEach(id => {
+                const el = document.getElementById(`tab-${id}`);
+                if (el) el.classList.add('hidden');
+            });
+            
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            const activeNav = document.querySelector(`.nav-item[onclick="switchTab('${tabId}')"]`);
+            if (activeNav) activeNav.classList.add('active');
+
+            if (window.innerWidth < 768) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar.classList.contains('hidden')) {
+                sidebar.classList.remove('hidden');
+                sidebar.classList.add('absolute', 'inset-y-0', 'left-0', 'z-40');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('absolute', 'inset-y-0', 'left-0', 'z-40');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function toggleAdvancedOptions() {
+            const panel = document.getElementById('advanced-options');
+            const icon = document.getElementById('advanced-chevron');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                panel.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // --- Core API Helpers ---
+        async function apiCall(action, params = {}) {
+            if (!state.apiKey) throw new Error("NO_KEY");
+            
+            const urlParams = new URLSearchParams({
+                action: action,
+                api_key: state.apiKey,
+                ...params
+            });
+            
+            const url = `${state.baseUrl}?${urlParams.toString()}`;
+            
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                
+                try {
+                    const json = JSON.parse(text);
+                    if (json.status === 'error') {
+                        throw new Error(json.message || json.error_code || 'API Error');
+                    }
+                    return { type: 'json', data: json };
+                } catch (e) {
+                    if (e.message.includes('JSON')) {
+                        return { type: 'text', data: text.trim() };
+                    } else {
+                        throw e;
+                    }
+                }
+            } catch (error) {
+                console.error(`API Error [${action}]:`, error);
+                throw error;
+            }
+        }
+
+        function saveSettings() {
+            const key = document.getElementById('input-api-key').value.trim();
+            if (key) {
+                state.apiKey = key;
+                localStorage.setItem('litensi_api_key', key);
+                saveCancelSettings();
+                showToast('Pengaturan berhasil disimpan.', 'success');
+                document.getElementById('api-key-warning').classList.add('hidden');
+                initApp();
+            } else {
+                showToast('API Key tidak boleh kosong.', 'error');
+            }
+        }
+
+        async function fetchBalance() {
+            const icon = document.getElementById('refresh-balance-icon');
+            if(icon) icon.classList.add('fa-spin');
+            
+            try {
+                const res = await apiCall('getBalance');
+                if (res.type === 'text') {
+                    if (res.data.startsWith('ACCESS_BALANCE:')) {
+                        const balStr = res.data.split(':')[1];
+                        state.balance = parseInt(balStr, 10) || 0;
+                        updateBalanceUI();
+                    } else {
+                        handleCommonErrors(res.data);
+                    }
+                }
+            } catch (error) {
+                handleCommonErrors(error.message);
+            } finally {
+                if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
+            }
+        }
+
+        function updateBalanceUI() {
+            const formatted = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(state.balance);
+            document.getElementById('sidebar-balance').innerText = formatted;
+            document.getElementById('mobile-balance').innerText = formatted;
+        }
+
+        // --- Fetch Data (Countries, Services) ---
+        async function fetchCountries() {
+            const select = document.getElementById('select-country');
+            try {
+                const res = await apiCall('getCountries');
+                if (res.type === 'json' && Array.isArray(res.data)) {
+                    state.countries = res.data.filter(c => c.visible === 1);
+                    select.innerHTML = '<option value="" disabled selected>Pilih negara...</option>';
+                    state.countries.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.text = c.eng;
+                        if (c.id === 6 || c.id === "6") opt.selected = true; // Default Indonesia
+                        select.appendChild(opt);
+                    });
+                    if (select.value) loadServicesAndOperators();
+                }
+            } catch (error) {
+                select.innerHTML = '<option value="" disabled>Gagal memuat negara</option>';
+            }
+        }
+
+        async function loadServicesAndOperators() {
+            state.selectedCountry = document.getElementById('select-country').value;
+            if (!state.selectedCountry) return;
+            
+            document.getElementById('service-empty-state').classList.add('hidden');
+            document.getElementById('service-list-loader').classList.remove('hidden');
+            document.getElementById('service-grid').innerHTML = '';
+            document.getElementById('btn-order').disabled = true;
+            document.getElementById('estimated-price').innerText = "Memuat harga...";
+            
+            state.selectedService = '';
+            document.getElementById('selected-service-code').value = '';
+
+            try {
+                const [servicesRes, pricesRes, operatorsRes] = await Promise.all([
+                    apiCall('getServicesList'),
+                    apiCall('getPrices', { country: state.selectedCountry }),
+                    apiCall('getOperators', { country: state.selectedCountry })
+                ]);
+
+                if (servicesRes.type === 'json' && servicesRes.data.status === 'success') {
+                    state.services = servicesRes.data.services;
+                }
+
+                const opSelect = document.getElementById('select-operator');
+                opSelect.innerHTML = '<option value="any">Acak (Semua Operator)</option>';
+                if (operatorsRes.type === 'json' && operatorsRes.data.status === 'success') {
+                    const countryOps = operatorsRes.data.countryOperators[state.selectedCountry];
+                    if (countryOps && Array.isArray(countryOps)) {
+                        countryOps.forEach(op => {
+                            const opt = document.createElement('option');
+                            opt.value = op;
+                            opt.text = op.charAt(0).toUpperCase() + op.slice(1);
+                            opSelect.appendChild(opt);
+                        });
+                    }
+                }
+
+                const pricesData = (pricesRes.type === 'json' && pricesRes.data.data) ? pricesRes.data.data : {};
+                state.services.forEach(srv => {
+                    srv.minPrice = null;
+                    srv.totalStock = 0;
+                    if (pricesData[srv.code] && pricesData[srv.code][state.selectedCountry]) {
+                        const priceMap = pricesData[srv.code][state.selectedCountry].map || {};
+                        const prices = Object.keys(priceMap).map(p => parseInt(p, 10));
+                        if (prices.length > 0) {
+                            srv.minPrice = Math.min(...prices);
+                            srv.totalStock = Object.values(priceMap).reduce((sum, qty) => sum + parseInt(qty, 10), 0);
+                        }
+                    }
+                });
+                renderServiceGrid();
+            } catch (error) {
+                showToast("Gagal memuat layanan.", "error");
+                document.getElementById('service-list-loader').classList.add('hidden');
+            }
+        }
+
+        function renderServiceGrid(searchTerm = '') {
+            const grid = document.getElementById('service-grid');
+            document.getElementById('service-list-loader').classList.add('hidden');
+            grid.innerHTML = '';
+            
+            const term = searchTerm.toLowerCase();
+            const filtered = state.services.filter(s => 
+                s.name.toLowerCase().includes(term) || s.code.toLowerCase().includes(term)
+            ).sort((a, b) => (b.totalStock > 0 ? 1 : 0) - (a.totalStock > 0 ? 1 : 0));
+
+            document.getElementById('service-count').innerText = `${filtered.length} tersedia`;
+
+            if (filtered.length === 0) {
+                 grid.innerHTML = '<div class="col-span-full py-4 text-center text-sm text-slate-500">Tidak ada layanan yang sesuai.</div>';
+                 return;
+            }
+
+            filtered.forEach(srv => {
+                const isAvailable = srv.totalStock > 0;
+                const card = document.createElement('div');
+                card.className = `service-card border rounded-lg p-3 cursor-pointer transition-all duration-200 flex flex-col ${isAvailable ? 'border-slate-200 hover:border-primary-400 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`;
+                
+                if (state.selectedService === srv.code) card.classList.add('selected', 'ring-1', 'ring-primary-500');
+
+                let iconClass = 'fa-solid fa-cube text-slate-400';
+                if(srv.name.toLowerCase().includes('whatsapp')) iconClass = 'fa-brands fa-whatsapp text-green-500';
+                if(srv.name.toLowerCase().includes('telegram')) iconClass = 'fa-brands fa-telegram text-blue-500';
+                if(srv.name.toLowerCase().includes('dana')) iconClass = 'fa-solid fa-wallet text-blue-600';
+                if(srv.name.toLowerCase().includes('google') || srv.name.toLowerCase().includes('gmail')) iconClass = 'fa-brands fa-google text-red-500';
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="${iconClass} text-lg"></i>
+                        <span class="font-semibold text-sm text-slate-800 truncate" title="${srv.name}">${srv.name}</span>
+                    </div>
+                    <div class="mt-auto flex justify-between items-end">
+                        <div class="text-xs">
+                            ${isAvailable ? `<span class="text-slate-500">Mulai </span><span class="font-bold text-slate-900">Rp ${srv.minPrice}</span>` : `<span class="text-red-500">Stok Habis</span>`}
+                        </div>
+                    </div>
+                `;
+
+                if (isAvailable) {
+                    card.onclick = () => selectService(srv.code, srv.minPrice, card);
+                } else {
+                    card.onclick = () => showToast(`${srv.name} sedang habis stok.`, 'warning');
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function filterServices() {
+            renderServiceGrid(document.getElementById('search-service').value);
+        }
+
+        function selectService(code, minPrice, cardElement) {
+            document.querySelectorAll('.service-card').forEach(c => c.classList.remove('selected', 'ring-1', 'ring-primary-500'));
+            cardElement.classList.add('selected', 'ring-1', 'ring-primary-500');
+            state.selectedService = code;
+            document.getElementById('selected-service-code').value = code;
+            
+            const btn = document.getElementById('btn-order');
+            btn.disabled = false;
+            const formattedPrice = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(minPrice);
+            document.getElementById('estimated-price').innerText = `Est. ${formattedPrice}`;
+        }
+
+        // --- Ordering Logic ---
+        async function orderNumber() {
+            if (!state.selectedCountry || !state.selectedService) {
+                showToast('Pilih negara dan layanan terlebih dahulu.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-order');
+            const btnText = document.getElementById('btn-order-text');
+            const loader = document.getElementById('btn-order-loader');
+            
+            btn.disabled = true;
+            btnText.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            const params = {
+                country: state.selectedCountry,
+                service: state.selectedService
+            };
+
+            const operator = document.getElementById('select-operator').value;
+            if (operator && operator !== 'any') params.operator = operator;
+
+            const maxPrice = document.getElementById('input-max-price').value;
+            if (maxPrice) params.maxPrice = maxPrice;
+
+            if (document.getElementById('check-fixed-price').checked) params.fixedPrice = true;
+            const exclude = document.getElementById('input-phone-exception').value.trim();
+            if (exclude) params.phoneException = exclude;
+
+            try {
+                const res = await apiCall('getNumber', params);
+                if (res.type === 'text') {
+                    if (res.data.startsWith('ACCESS_NUMBER:')) {
+                        const parts = res.data.split(':');
+                        const activationId = parts[1];
+                        const phoneNumber = parts[2];
+                        
+                        state.orderStartTimes[activationId] = Date.now();
+                        localStorage.setItem('litensi_order_timers', JSON.stringify(state.orderStartTimes));
+
+                        showToast(`Berhasil order nomor baru: +${phoneNumber}`, 'success');
+                        fetchBalance();
+                        await fetchActiveOrders();
+                        switchTab('active');
+                        startPolling(activationId);
+                    } else {
+                        handleCommonErrors(res.data);
+                    }
+                }
+            } catch (error) {
+                 handleCommonErrors(error.message);
+            } finally {
+                btn.disabled = false;
+                btnText.classList.remove('hidden');
+                loader.classList.add('hidden');
+            }
+        }
+
+        // --- Active Orders Logic (STRICT: ONLY NUMBERS WITHOUT OTP) ---
+        async function fetchActiveOrders() {
+            const icon = document.getElementById('refresh-orders-icon');
+            if(icon) icon.classList.add('fa-spin');
+            
+            try {
+                const res = await apiCall('getActiveActivations', { limit: 50 });
+                if (res.type === 'json' && res.data.status === 'success') {
+                    const rawList = res.data.data || [];
+
+                    // 1. Apabila ada order yang ternyata SUDAH masuk OTP (status '4' atau smsCode ada),
+                    //    langsung otomatis pindahkan ke History Sukses & selesaikan.
+                    rawList.forEach(order => {
+                        if (order.activationStatus === '4' || order.smsCode) {
+                            addHistoryRecord(order, 'SUKSES', order.smsCode || 'RECEIVED');
+                            apiCall('setStatus', { id: order.activationId, status: 6 }).catch(() => {});
+                        }
+                    });
+
+                    // 2. KETAT: Filter HANYA nomor yang BELUM pernah menerima OTP sama sekali (status 1 atau 3)
+                    state.activeOrders = rawList.filter(order => 
+                        ['1', '3'].includes(order.activationStatus) && !order.smsCode
+                    );
+                    
+                    // Sync start times untuk order aktif yang belum memiliki timestamp
+                    state.activeOrders.forEach(o => {
+                        if (!state.orderStartTimes[o.activationId]) {
+                            state.orderStartTimes[o.activationId] = Date.now();
+                        }
+                    });
+                    localStorage.setItem('litensi_order_timers', JSON.stringify(state.orderStartTimes));
+
+                    updateActiveOrdersUI();
+                    updateActiveCountBadge();
+                    managePolling();
+                }
+            } catch (error) {
+                console.error("Gagal mengambil order aktif", error);
+            } finally {
+                if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
+            }
+        }
+
+        function updateActiveCountBadge() {
+            const badge = document.getElementById('active-count-badge');
+            badge.innerText = state.activeOrders.length;
+        }
+
+        function updateActiveOrdersUI() {
+            const grid = document.getElementById('active-orders-grid');
+            const emptyState = document.getElementById('active-empty-state');
+            
+            if (state.activeOrders.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+            grid.innerHTML = '';
+
+            state.activeOrders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow';
+                card.dataset.id = order.activationId;
+
+                // Timer Calculations
+                const startTime = state.orderStartTimes[order.activationId] || Date.now();
+                const totalSec = state.timerMinutes * 60;
+                const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+                const remainingSec = Math.max(0, totalSec - elapsedSec);
+
+                const mins = Math.floor(remainingSec / 60);
+                const secs = remainingSec % 60;
+                const formattedTime = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+                const statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Menunggu OTP (Belum Masuk)</span>`;
+                
+                const smsContent = `
+                    <div class="flex flex-col items-center justify-center py-3 px-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg mt-3">
+                        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                            </span>
+                            Auto-cek OTP Aktif (0 OTP Received)
+                        </div>
+                        <div class="mt-2 text-center">
+                            <span class="text-xs text-slate-500">Sisa Waktu Aktif: </span>
+                            <span class="text-sm font-mono font-bold ${remainingSec < 120 ? 'text-red-600' : 'text-primary-600'}">${formattedTime}</span>
+                        </div>
+                    </div>
+                `;
+
+                const actionButtons = `
+                    <button onclick="forceCancelOrder('${order.activationId}')" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-md text-xs font-bold transition-colors shadow-sm flex justify-center items-center gap-1">
+                        <i class="fa-solid fa-ban"></i> Batal Langsung (Instant)
+                    </button>
+                    <button onclick="setOrderStatusWithReason('${order.activationId}', 8, 'dana')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 px-3 rounded-md text-xs font-bold transition-colors shadow-sm flex justify-center items-center gap-1" title="Batal jika nomor sudah terdaftar DANA">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Terpakai DANA
+                    </button>
+                `;
+
+                const formattedPhone = order.phoneNumber.startsWith('+') ? order.phoneNumber : `+${order.phoneNumber}`;
+                const srvName = getServiceName(order.serviceCode);
+
+                card.innerHTML = `
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase">${srvName}</span>
+                            ${statusBadge}
+                        </div>
+                        
+                        <div class="flex items-center justify-between mt-2">
+                            <div>
+                                <p class="text-[11px] text-slate-400">Nomor HP</p>
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-base font-extrabold text-slate-900 font-mono">${formattedPhone}</p>
+                                    <button onclick="copyToClipboard('${formattedPhone.replace('+','')}', this)" class="text-slate-400 hover:text-primary-600" title="Salin nomor">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[11px] text-slate-400">Harga</p>
+                                <p class="font-bold text-xs text-slate-800">Rp ${order.activationCost}</p>
+                            </div>
+                        </div>
+
+                        ${smsContent}
+                    </div>
+                    
+                    <div class="bg-slate-50 px-4 py-2.5 border-t border-slate-100 flex gap-2">
+                        ${actionButtons}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- Polling & Timer Tick ---
+        function managePolling() {
+            const activeIds = state.activeOrders.map(o => o.activationId);
+            
+            Object.keys(state.pollingIntervals).forEach(id => {
+                if (!activeIds.includes(id)) stopPolling(id);
+            });
+
+            state.activeOrders.forEach(order => {
+                if (['1', '3'].includes(order.activationStatus)) {
+                    if (!state.pollingIntervals[order.activationId]) startPolling(order.activationId);
+                }
+            });
+
+            if (!window.masterTimer) {
+                window.masterTimer = setInterval(handleTimerTick, 1000);
+            }
+        }
+
+        function handleTimerTick() {
+            if (state.activeOrders.length === 0) return;
+            
+            state.activeOrders.forEach(order => {
+                if (['1', '3'].includes(order.activationStatus)) {
+                    const startTime = state.orderStartTimes[order.activationId] || Date.now();
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    const remaining = (state.timerMinutes * 60) - elapsed;
+
+                    if (remaining <= 0 && state.autoCancelExpired) {
+                        forceCancelOrder(order.activationId, true);
+                    }
+                }
+            });
+
+            updateActiveOrdersUI();
+        }
+
+        function startPolling(id) {
+            if (state.pollingIntervals[id]) return;
+            state.pollingIntervals[id] = setInterval(() => checkStatus(id), 5000);
+        }
+
+        function stopPolling(id) {
+            if (state.pollingIntervals[id]) {
+                clearInterval(state.pollingIntervals[id]);
+                delete state.pollingIntervals[id];
+            }
+        }
+
+        async function checkStatus(id) {
+            try {
+                const res = await apiCall('getStatus', { id: id });
+                if (res.type === 'text') {
+                    const statusStr = res.data;
+                    if (statusStr.startsWith('STATUS_OK:')) {
+                        const code = statusStr.split(':')[1];
+                        stopPolling(id);
+                        
+                        if (state.audioNotify) playBeepSound();
+                        
+                        const order = state.activeOrders.find(o => o.activationId === id);
+                        if (order) {
+                            showToast(`OTP Masuk: ${code} (+${order.phoneNumber}). Pindah ke History.`, 'success');
+                            
+                            // 1. Simpan ke Riwayat Sukses
+                            addHistoryRecord(order, 'SUKSES', code);
+                            
+                            // 2. Beritahu server bahwa order selesai
+                            apiCall('setStatus', { id: id, status: 6 }).catch(() => {});
+
+                            // 3. KETAT: Keluarkan nomor ini dari Active Orders agar Active Orders HANYA nomor belum pernah masuk OTP
+                            removeOrderFromList(id);
+                        }
+                    } else if (statusStr === 'STATUS_CANCEL') {
+                        stopPolling(id);
+                        removeOrderFromList(id);
+                    }
+                }
+            } catch (error) {
+                console.error(`Status check error for ${id}:`, error);
+            }
+        }
+
+        async function forceCancelOrder(id, isAuto = false) {
+            showToast(isAuto ? "Auto-cancelling nomor expired..." : "Membatalkan orderan...", "info");
+            
+            try {
+                const res = await apiCall('setStatus', { id: id, status: 8 });
+                if (res.type === 'text' && (res.data === 'ACCESS_CANCEL' || res.data.includes('CANCEL'))) {
+                    stopPolling(id);
+                    removeOrderFromList(id);
+                    showToast('Orderan berhasil dibatalkan! Saldo telah dikembalikan.', 'success');
+                    fetchBalance();
+                } else if (res.data === 'BAD_STATUS' || res.data === 'CANT_CANCEL') {
+                    showToast('API Litensi menolak cancel (Menunggu jeda server atau OTP sudah terkirim).', 'warning');
+                } else {
+                    handleCommonErrors(res.data);
+                }
+            } catch (err) {
+                handleCommonErrors(err.message);
+            }
+        }
+
+        async function setOrderStatusWithReason(id, statusCode, reason) {
+            if (statusCode === 8) {
+                return forceCancelOrder(id);
+            }
+            try {
+                const res = await apiCall('setStatus', { id: id, status: statusCode });
+                if (res.type === 'text' && (res.data === 'ACCESS_ACTIVATION' || res.data === 'ACCESS_CANCEL')) {
+                    stopPolling(id);
+                    const order = state.activeOrders.find(o => o.activationId === id);
+                    if (order && statusCode === 6) {
+                        addHistoryRecord(order, 'SUKSES', order.smsCode || '-');
+                    }
+                    
+                    removeOrderFromList(id);
+                    showToast('Status orderan diperbarui.', 'success');
+                    fetchBalance();
+                } else {
+                    handleCommonErrors(res.data);
+                }
+            } catch (error) {
+                handleCommonErrors(error.message);
+            }
+        }
+
+        async function cancelAllActiveOrders() {
+            if (state.activeOrders.length === 0) {
+                showToast('Tidak ada order aktif.', 'info');
+                return;
+            }
+            if (!confirm('Apakah Anda yakin ingin membatalkan semua order aktif sekaligus?')) return;
+            
+            for (const order of [...state.activeOrders]) {
+                await forceCancelOrder(order.activationId);
+            }
+        }
+
+        function removeOrderFromList(id) {
+            state.activeOrders = state.activeOrders.filter(o => o.activationId !== id);
+            delete state.orderStartTimes[id];
+            localStorage.setItem('litensi_order_timers', JSON.stringify(state.orderStartTimes));
+            updateActiveOrdersUI();
+            updateActiveCountBadge();
+        }
+
+        // --- History Log Management (SUKSES & HANYA 1 NOMOR UNIK) ---
+        function addHistoryRecord(order, statusText, code = '-') {
+            if (statusText !== 'SUKSES' && statusText !== 'SELESAI') return;
+
+            const cleanNewPhone = order.phoneNumber.toString().replace(/[^0-9]/g, '');
+
+            // Cegah duplikasi: jika nomor yang sama sudah pernah tersimpan, perbarui record-nya
+            state.historyOrders = state.historyOrders.filter(h => {
+                const cleanExistingPhone = h.phone.toString().replace(/[^0-9]/g, '');
+                return cleanExistingPhone !== cleanNewPhone && h.id !== order.activationId;
+            });
+
+            const record = {
+                id: order.activationId,
+                service: getServiceName(order.serviceCode),
+                phone: order.phoneNumber,
+                code: code,
+                status: 'SUKSES',
+                time: new Date().toLocaleString('id-ID')
+            };
+
+            state.historyOrders.unshift(record);
+            if (state.historyOrders.length > 200) state.historyOrders.pop();
+
+            state.historyOrders = deduplicateHistoryByPhone(state.historyOrders);
+
+            localStorage.setItem('litensi_history_orders', JSON.stringify(state.historyOrders));
+            renderHistoryTable();
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('history-table-body');
+            if (!tbody) return;
+
+            const successHistory = deduplicateHistoryByPhone(
+                state.historyOrders.filter(h => h.status === 'SUKSES' || h.status === 'SELESAI')
+            );
+
+            if (successHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 font-sans italic">Belum ada riwayat nomor sukses tersimpan.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = successHistory.map(h => {
+                const cleanPhone = h.phone.replace(/[^0-9]/g, '');
+                return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 text-slate-600">${h.id}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-800 font-sans">${h.service}</td>
+                    <td class="px-4 py-3 text-slate-900 font-bold font-mono">+${cleanPhone}</td>
+                    <td class="px-4 py-3 text-emerald-600 font-black font-mono text-sm">${h.code}</td>
+                    <td class="px-4 py-3 font-sans">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i> SUKSES
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-400 text-[10px] font-sans">${h.time}</td>
+                    <td class="px-4 py-3 font-sans">
+                        <button onclick="copyToClipboard('${cleanPhone}', this)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5 transition-all active:scale-95" title="Salin nomor ini">
+                            <i class="fa-regular fa-copy text-slate-500"></i> Salin
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function copyAllHistoryNumbers() {
+            const successHistory = deduplicateHistoryByPhone(
+                state.historyOrders.filter(h => h.status === 'SUKSES' || h.status === 'SELESAI')
+            );
+            
+            if (successHistory.length === 0) {
+                showToast('Tidak ada nomor sukses yang bisa disalin.', 'warning');
+                return;
+            }
+
+            const allNumbers = successHistory.map(h => h.phone.replace(/[^0-9]/g, '')).join('\n');
+            copyToClipboard(allNumbers);
+            showToast(`${successHistory.length} nomor sukses unik berhasil disalin!`, 'success');
+        }
+
+        function clearHistory() {
+            if (confirm('Hapus semua riwayat nomor sukses dari penyimpanan lokal?')) {
+                state.historyOrders = [];
+                localStorage.removeItem('litensi_history_orders');
+                renderHistoryTable();
+                showToast('Riwayat berhasil dihapus.', 'info');
+            }
+        }
+
+        // --- Sound Alert Helper ---
+        function playBeepSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                console.log("Audio permission pending.");
+            }
+        }
+
+        function getServiceName(code) {
+            const srv = state.services.find(s => s.code === code);
+            return srv ? srv.name : (code ? code.toUpperCase() : 'Layanan');
+        }
+
+        function copyToClipboard(text, btnElement) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const displayMsg = text.includes('\n') ? `${text.split('\n').length} nomor sukses berhasil disalin!` : `Nomor disalin: ${text}`;
+                showToast(displayMsg, 'success');
+            } catch (err) {
+                console.error('Gagal menyalin', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function handleCommonErrors(errStr) {
+            let msg = errStr;
+            let type = 'error';
+            switch (errStr) {
+                case 'NO_BALANCE': msg = "Saldo tidak mencukupi. Silakan top up."; break;
+                case 'NO_NUMBERS': msg = "Stok nomor untuk kriteria ini sedang habis."; type="warning"; break;
+                case 'NO_KEY': msg = "API Key belum terpasang."; break;
+                case 'BAD_KEY': msg = "API Key salah atau tidak valid."; break;
+                case 'BAD_SERVICE': msg = "Layanan atau negara tidak valid."; break;
+                case 'TOO_MANY_ACTIVE_ACTIVATIONS': msg = "Batas order aktif tercapai. Batalkan beberapa order terlebih dahulu."; break;
+            }
+            showToast(msg, type);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800';
+            let icon = '<i class="fa-solid fa-circle-info text-blue-400"></i>';
+            if(type === 'success') { bg = 'bg-emerald-600'; icon = '<i class="fa-solid fa-check-circle text-white"></i>'; }
+            if(type === 'error') { bg = 'bg-red-600'; icon = '<i class="fa-solid fa-circle-exclamation text-white"></i>'; }
+            if(type === 'warning') { bg = 'bg-amber-500'; icon = '<i class="fa-solid fa-triangle-exclamation text-white"></i>'; }
+
+            toast.className = `${bg} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[250px] max-w-sm toast-enter`;
+            toast.innerHTML = `
+                ${icon}
+                <span class="text-xs font-semibold flex-1">${message}</span>
+                <button onclick="this.parentElement.remove()" class="text-white/70 hover:text-white">
+                    <i class="fa-solid fa-times text-xs"></i>
+                </button>
+            `;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-enter-active');
+            });
+            
+            setTimeout(() => {
+                toast.classList.remove('toast-enter-active');
+                toast.classList.add('toast-exit-active');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
